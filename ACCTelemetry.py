@@ -1,22 +1,12 @@
-import mmap, struct, time, keyboard
+import mmap, struct
 from LocalParameters import LocalParametersClass
 
-
-
-class ACCData(object):
+class ACCTelemetry(LocalParametersClass):
     
     def __init__(self):
         print('ACCData.init()')
-                    
-        LocalParameters = LocalParametersClass()
-        self.LocalParameters = LocalParameters
-        attributes_list = [
-            'physics_fields', 'physics_layout', 'physics_NameXYZList', 'physics_NameFLFRRLRRList',
-            'graphic_fields', 'graphic_layout', 'graphic_newNameList', 'graphic_CharList',
-            'static_fields', 'static_layout', 'static_newNameList', 'static_CharList', 'static_NameFLFRRLRRList'
-            ]
-        for attr in attributes_list:
-            setattr(self, attr, getattr(LocalParameters, attr))
+        
+        super().__init__()
         
         # Physics
         self.physics_shm_size = struct.calcsize(self.physics_layout)        
@@ -75,10 +65,6 @@ class ACCData(object):
         return static_data
 
 
-    # def getJsonData(self):
-    #     return json.dumps(self.getData())
-
-
     def stop(self):
         print('ACCData.stop()')
         
@@ -117,7 +103,7 @@ class ACCData(object):
         # Combine x1, x2, ..., xn
         for newName in self.graphic_newNameList:
             data[newName] = []
-            for oldName in getattr(self.LocalParameters, f'{newName}_list'):
+            for oldName in getattr(self, f'{newName}_list'):
                 data[newName].append(data[oldName])
                 del data[oldName]
 
@@ -134,7 +120,7 @@ class ACCData(object):
         # Combine x1, x2, ..., xn
         for newName in self.static_newNameList:
             data[newName] = []
-            for oldName in getattr(self.LocalParameters, f'{newName}_list'):
+            for oldName in getattr(self, f'{newName}_list'):
                 data[newName].append(data[oldName])
                 del data[oldName]
 
@@ -149,34 +135,11 @@ class ACCData(object):
             for oldNameFLFRRLRR in [newNameFLFRRLRR + 'FL', newNameFLFRRLRR + 'FR', newNameFLFRRLRR + 'RL', newNameFLFRRLRR + 'RR']:
                 data[newNameFLFRRLRR].append(data[oldNameFLFRRLRR])
                 del data[oldNameFLFRRLRR]    
-            
-
-
-
-
-if __name__ == '__main__':
     
-    ACCTelemetry = ACCData()
-    ACCTelemetry.start()
-
-
-    file = open("SavedData.txt", "w+", newline = "")
     
-    while True:
-            
-        Current_ACCphysicsData = ACCTelemetry.getphysicsData()
-        Current_ACCgraphicData = ACCTelemetry.getgraphicData()
-        Current_ACCstaticData = ACCTelemetry.getstaticData()
-        Current_ACCData = {**Current_ACCphysicsData, **Current_ACCgraphicData, **Current_ACCstaticData}               
-        
-        for variable_name, variable_value in Current_ACCData.items():
-            file.write(f'{variable_name}: {variable_value} \n')
-        file.write(f'========================================================== \n')     
-        
-        time.sleep(0.01) # dt
-        
-        if keyboard.is_pressed('esc'):
-            break    
-           
-    ACCTelemetry.stop()
-        
+    def getACCData(self):
+        Current_physicsData = self.getphysicsData()
+        Current_graphicData = self.getgraphicData()
+        Current_staticData = self.getstaticData()
+        Current_Data = {**Current_physicsData, **Current_graphicData, **Current_staticData}
+        return Current_Data          
