@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
+from typing import Any
 
 class RealTimePlot:
     
-    def __init__(self):
+    def __init__(self) -> None:
         
-        mem_x = []
-        mem_y = []
-        mem_z = []
+        mem_x: list[float] = []
+        mem_y: list[float] = []
+        mem_z: list[float] = []
 
         # Initialize the plot
         plt.style.use('dark_background')
@@ -38,7 +39,7 @@ class RealTimePlot:
         self.marker = marker
         
     
-    def plot(self, Current_ACCData):
+    def plot(self, Current_ACCData: dict[str, Any]):
         
         mem_x = self.mem_x
         mem_y = self.mem_y
@@ -50,17 +51,16 @@ class RealTimePlot:
         marker = self.marker
            
         
-        Current_carCoordinates = Current_ACCData['carCoordinates']
-        Current_iCurrentTime = Current_ACCData['iCurrentTime']
-        Current_mycarCoordinates = Current_carCoordinates[:3]
+        Current_carCoordinates: list[float] = Current_ACCData['carCoordinates']
+        Current_iCurrentTime: int = Current_ACCData['iCurrentTime']
+        Current_mycarCoordinates: list[float] = Current_carCoordinates[:3]
         
+        # print(Current_mycarCoordinates)
+        x: float = Current_mycarCoordinates[0] # x
+        y: float = Current_mycarCoordinates[1] # y
+        z: float = Current_mycarCoordinates[2] # z
+        t: float = Current_iCurrentTime * 0.001  # ms >> s
         
-        print(Current_mycarCoordinates)
-        x = Current_mycarCoordinates[0] # x
-        y = Current_mycarCoordinates[1] # y
-        z = Current_mycarCoordinates[2] # z
-        t = Current_iCurrentTime*0.001  # ms >> s
-
 
         mem_x.append(x)
         mem_y.append(y)
