@@ -3,10 +3,10 @@
 
 class LocalParametersClass: 
 
-    def __init__(self):
+    def __init__(self) -> None:
         
         #### Physics ####
-        physics_fields = (
+        physics_fields: str = (
             'packetId throttle brake fuel gear rpm steerAngle speedKmh '
             'velocityX velocityY velocityZ accGX accGY accGZ '
             'wheelSlipFL wheelSlipFR wheelSlipRL wheelSlipRR '
@@ -51,10 +51,9 @@ class LocalParametersClass:
             'frontBrakeCompound rearBrakeCompound padLifeFL padLifeFR padLifeRL padLifeRR '
             'discLifeFL discLifeFR discLifeRL discLifeRR '           
         )
-        self.physics_fields = physics_fields.replace('  ', ' ').split(' ') 
+        self.physics_fields: list[str] = physics_fields.replace('  ', ' ').split(' ') 
         
-        
-        physics_layout = (
+        physics_layout: str = (
             'ifffiiff'
             '3f3f4f'
             '4f4f4f4f4f4f4f4f'
@@ -69,17 +68,17 @@ class LocalParametersClass:
             'ii4f4ff4f'
             'ii4f4f'
         )
-        self.physics_layout = physics_layout       
+        self.physics_layout: str = physics_layout       
 
 
-        self.physics_NameXYZList = ['velocity', 'accG', 'localAngularVel',
+        self.physics_NameXYZList: list[str] = ['velocity', 'accG', 'localAngularVel',
             'tyreContactPointFL', 'tyreContactPointFR', 'tyreContactPointRL', 'tyreContactPointRR',
             'tyreContactNormalFL', 'tyreContactNormalFR', 'tyreContactNormalRL', 'tyreContactNormalRR',
             'tyreContactHeadingFL', 'tyreContactHeadingFR', 'tyreContactHeadingRL', 'tyreContactHeadingRR',
             'localVelocity']
         
         
-        self.physics_NameFLFRRLRRList = ['wheelSlip', 'wheelLoad', 'wheelsPressure', 'wheelAngularSpeed',
+        self.physics_NameFLFRRLRRList: list[str] = ['wheelSlip', 'wheelLoad', 'wheelsPressure', 'wheelAngularSpeed',
             'Tyrewear', 'tyreDirtyLevel', 'TyreCoreTemp', 'camberRAD', 'suspensionTravel',
             'brakeTemp', 'tyreContactPoint', 'tyreContactNormal', 'tyreContactHeading',
             'mz', 'fx', 'fy', 'slipRatio', 'slipAngle', 'suspensionDamage', 'tyreTemp',
@@ -88,7 +87,7 @@ class LocalParametersClass:
         
         
         #### Graphic ####     
-        graphic_partial_fields = (
+        graphic_partial_fields: str = (
             'packetId status session '
             # currentTime lastTime bestTime split 
             'completedLaps position iCurrentTime iLastTime iBestTime '
@@ -113,10 +112,10 @@ class LocalParametersClass:
             'trackGripStatus rainIntensity rainIntensityIn10min rainIntensityIn30min '
             'currentTyreSet strategyTyreSet gapAhead gapBehind' 
         )
-        graphic_fields = graphic_partial_fields.replace('  ', ' ').split(' ')  
+        graphic_fields: list[str] = graphic_partial_fields.replace('  ', ' ').split(' ')  
         
         
-        graphic_lists_name_length_index = {
+        graphic_lists_name_length_index: dict[str, list[int]] = {
             # 'name': [length, index]
             'currentTime': [30,3],
             'lastTime': [30,33],
@@ -131,16 +130,16 @@ class LocalParametersClass:
         }
 
         # Create lists for array datas 
-        graphic_lists = {f'{name}_list': [[f'{name}{i}' for i in range(1, value[0] + 1)], value[1]] for name, value in graphic_lists_name_length_index.items()}
-
+        graphic_lists: dict[str, tuple[list[str], int]] = {f'{name}_list': ([f'{name}{i}' for i in range(1, value[0] + 1)], value[1]) for name, value in graphic_lists_name_length_index.items()}
+        
         for name, value in graphic_lists.items():
             setattr(self, name, value[0])                   # Define self.lists
             graphic_fields[value[1]:value[1]] = value[0]    # Insert lists into fields
         
-        self.graphic_fields = graphic_fields    
+        self.graphic_fields: list[str] = graphic_fields    
         
         
-        graphic_layout = (
+        graphic_layout: str = (
             'iii30c30c30c30c'   # sizeof(c_wchar) = sizeof(c_char) * 2
             'iiiiiffiiii'
             '66cffi180f60i'
@@ -151,19 +150,19 @@ class LocalParametersClass:
             'ifiiiiiiiiiiiff'
             'fffiiiiiiii'
         )        
-        self.graphic_layout = graphic_layout
+        self.graphic_layout: str = graphic_layout
                
                         
-        self.graphic_newNameList = [lists[0] for lists in graphic_lists_name_length_index.items()]
-          
+        self.graphic_newNameList: list[str] = [lists[0] for lists in graphic_lists_name_length_index.items()]
+   
                
-        self.graphic_CharList = ['currentTime', 'lastTime', 'bestTime',
+        self.graphic_CharList: list[str] = ['currentTime', 'lastTime', 'bestTime',
             'split', 'tyreCompound', 'deltaLapTime', 'estimatedLapTime', 'trackStatus']  
         
              
              
         #### Static ####
-        static_partial_fields = (
+        static_partial_fields: str = (
             # smVersion acVersion
             'numberOfSessions numCars '
             # carModel track playerName playerSurname playerNick
@@ -179,10 +178,10 @@ class LocalParametersClass:
             'reversedGridPositions PitWindowStart PitWindowEnd isOnline'
             # dryTyresName wetTyresName 
         )
-        static_fields = static_partial_fields.replace('  ', ' ').split(' ') 
+        static_fields: list[str] = static_partial_fields.replace('  ', ' ').split(' ') 
         
         
-        static_lists_name_length_index = {
+        static_lists_name_length_index: dict[str, list[int]] = {
             # 'name': [length, index]
             'smVersion': [30,0],
             'acVersion': [30,30],
@@ -198,16 +197,15 @@ class LocalParametersClass:
         }
 
         # Create lists for array datas
-        static_lists = {f'{name}_list': [[f'{name}{i}' for i in range(1, value[0] + 1)], value[1]] for name, value in static_lists_name_length_index.items()}
-
+        static_lists: dict[str, tuple[list[str], int]] = {f'{name}_list': ([f'{name}{i}' for i in range(1, value[0] + 1)], value[1]) for name, value in static_lists_name_length_index.items()}
+        
         for name, value in static_lists.items():
             setattr(self, name, value[0])                   # Define self.lists
             static_fields[value[1]:value[1]] = value[0]     # Insert lists into fields       
             
-        self.static_fields = static_fields
+        self.static_fields: list[str] = static_fields
         
-        
-        static_layout = (
+        static_layout: str = (
             '30c30cii'
             '66c66c66c66c66c'
             'iffif4f4f'
@@ -215,14 +213,13 @@ class LocalParametersClass:
             '66cfii66c'
             'iiii66c66c'
         )
-        self.static_layout = static_layout
+        self.static_layout: str = static_layout
         
 
-        self.static_newNameList = [lists[0] for lists in static_lists_name_length_index.items()]
+        self.static_newNameList: list[str] = [lists[0] for lists in static_lists_name_length_index.items()]
         
         
-        self.static_CharList = self.static_newNameList  # All newNameList is CharList 
+        self.static_CharList: list[str] = self.static_newNameList  # All newNameList is CharList 
         
                 
-        self.static_NameFLFRRLRRList = ['suspensionMaxTravel', 'tyreRadius']
-        
+        self.static_NameFLFRRLRRList: list[str] = ['suspensionMaxTravel', 'tyreRadius']

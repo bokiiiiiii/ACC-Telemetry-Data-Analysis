@@ -1,38 +1,39 @@
 import mmap, struct
+from typing import Any
 from LocalParameters import LocalParametersClass
 
 class ACCTelemetry(LocalParametersClass):
     
-    def __init__(self):
+    def __init__(self) -> None:
         print('ACCData.init()')
         
         super().__init__()
         
         # Physics
-        self.physics_shm_size = struct.calcsize(self.physics_layout)        
-        self.mmapPhysics = None
-        
+        self.physics_shm_size: int = struct.calcsize(self.physics_layout)          
+        self.mmapPhysics: Any = None
+
         # Graphic
-        self.graphic_shm_size = struct.calcsize(self.graphic_layout)        
-        self.mmapGraphic = None
+        self.graphic_shm_size: int = struct.calcsize(self.graphic_layout)        
+        self.mmapGraphic: Any = None
                 
         # Static
-        self.static_shm_size = struct.calcsize(self.static_layout)
-        self.mmapStatic = None
+        self.static_shm_size: int = struct.calcsize(self.static_layout)
+        self.mmapStatic: Any = None
         
         
-    def start(self):
+    def start(self) -> None:
         print('ACCData.start()')
         
         if not self.mmapPhysics:
-            self.mmapPhysics = mmap.mmap(-1, self.physics_shm_size, 'Local\\acpmf_physics',  access = mmap.ACCESS_READ)  
+            self.mmapPhysics = mmap.mmap(-1, self.physics_shm_size, 'Local\\acpmf_physics',  access = mmap.ACCESS_READ) 
         if not self.mmapGraphic:    
             self.mmapGraphic = mmap.mmap(-1, self.graphic_shm_size, 'Local\\acpmf_graphics',  access = mmap.ACCESS_READ)
         if not self.mmapStatic:    
             self.mmapStatic = mmap.mmap(-1, self.static_shm_size, 'Local\\acpmf_static',  access = mmap.ACCESS_READ)
            
 
-    def getphysicsData(self):
+    def getphysicsData(self) -> dict[str, Any]:
         self.mmapPhysics.seek(0)
         physics_rawData = self.mmapPhysics.read(self.physics_shm_size)
         physics_data = {}
@@ -43,7 +44,7 @@ class ACCTelemetry(LocalParametersClass):
         return physics_data
 
 
-    def getgraphicData(self):
+    def getgraphicData(self) -> dict[str, Any]:
         self.mmapGraphic.seek(0)
         graphic_rawData = self.mmapGraphic.read(self.graphic_shm_size)
         graphic_data = {}
@@ -54,7 +55,7 @@ class ACCTelemetry(LocalParametersClass):
         return graphic_data
 
 
-    def getstaticData(self):
+    def getstaticData(self) -> dict[str, Any]:
         self.mmapStatic.seek(0)
         static_rawData = self.mmapStatic.read(self.static_shm_size)
         static_data = {}
@@ -65,7 +66,7 @@ class ACCTelemetry(LocalParametersClass):
         return static_data
 
 
-    def stop(self):
+    def stop(self) -> None:
         print('ACCData.stop()')
         
         if self.mmapPhysics:
@@ -81,7 +82,7 @@ class ACCTelemetry(LocalParametersClass):
         self.mmapStatic = None
 
 
-    def _convertphysicsData(self, data):
+    def _convertphysicsData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine X, Y, Z
         for newNameXYZ in self.physics_NameXYZList:
@@ -98,7 +99,7 @@ class ACCTelemetry(LocalParametersClass):
                 del data[oldNameFLFRRLRR]
             
 
-    def _convertgraphicData(self, data):
+    def _convertgraphicData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine x1, x2, ..., xn
         for newName in self.graphic_newNameList:
@@ -115,7 +116,7 @@ class ACCTelemetry(LocalParametersClass):
                 
 
 
-    def _convertstaticData(self, data):
+    def _convertstaticData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine x1, x2, ..., xn
         for newName in self.static_newNameList:
@@ -137,9 +138,11 @@ class ACCTelemetry(LocalParametersClass):
                 del data[oldNameFLFRRLRR]    
     
     
-    def getACCData(self):
+    def getACCData(self) -> dict[str, Any]:
         Current_physicsData = self.getphysicsData()
         Current_graphicData = self.getgraphicData()
         Current_staticData = self.getstaticData()
         Current_Data = {**Current_physicsData, **Current_graphicData, **Current_staticData}
-        return Current_Data          
+        return Current_Data 
+    
+    
