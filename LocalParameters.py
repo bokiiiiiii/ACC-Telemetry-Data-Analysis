@@ -165,7 +165,7 @@ class LocalParametersClass:
 
         for name, value in graphic_lists.items():
             setattr(self, name, value[0])  # Define self.lists
-            graphic_fields[value[1]:value[1]] = value[0]  # Insert lists into fields
+            graphic_fields[value[1] : value[1]] = value[0]  # Insert lists into fields
 
         self.graphic_fields: list[str] = graphic_fields
 
@@ -239,7 +239,7 @@ class LocalParametersClass:
 
         for name, value in static_lists.items():
             setattr(self, name, value[0])  # Define self.lists
-            static_fields[value[1]:value[1]] = value[0]  # Insert lists into fields
+            static_fields[value[1] : value[1]] = value[0]  # Insert lists into fields
 
         self.static_fields: list[str] = static_fields
 
