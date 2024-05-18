@@ -2,9 +2,10 @@ import mmap, struct
 from typing import Any
 from LocalParameters import LocalParametersClass
 
-
+# @brief ACCTelemetry: Process ACC telemetry data from shared memory
 class ACCTelemetry(LocalParametersClass):
 
+    # @brief __init__: Initialize parameters and variables
     def __init__(self) -> None:
         print("ACCData.init()")
 
@@ -22,6 +23,7 @@ class ACCTelemetry(LocalParametersClass):
         self.static_shm_size: int = struct.calcsize(self.static_layout)
         self.mmapStatic: Any = None
 
+    # @brief start: Declare memory maps for physics, graphic, and static fields
     def start(self) -> None:
         print("ACCData.start()")
 
@@ -44,6 +46,8 @@ class ACCTelemetry(LocalParametersClass):
                 -1, self.static_shm_size, "Local\\acpmf_static", access=mmap.ACCESS_READ
             )
 
+    # @brief getphysicsData: Process physics data from the memory map
+    # @return: Physics data dictionary
     def getphysicsData(self) -> dict[str, Any]:
         self.mmapPhysics.seek(0)
         physics_rawData = self.mmapPhysics.read(self.physics_shm_size)
@@ -56,6 +60,8 @@ class ACCTelemetry(LocalParametersClass):
         self._convertphysicsData(physics_data)
         return physics_data
 
+    # @brief getgraphicData: Process graphic data from the memory map
+    # @return: Graphic data dictionary
     def getgraphicData(self) -> dict[str, Any]:
         self.mmapGraphic.seek(0)
         graphic_rawData = self.mmapGraphic.read(self.graphic_shm_size)
@@ -68,6 +74,8 @@ class ACCTelemetry(LocalParametersClass):
         self._convertgraphicData(graphic_data)
         return graphic_data
 
+    # @brief getstaticData: Process static data from the memory map
+    # @return: Static data dictionary
     def getstaticData(self) -> dict[str, Any]:
         self.mmapStatic.seek(0)
         static_rawData = self.mmapStatic.read(self.static_shm_size)
@@ -80,6 +88,7 @@ class ACCTelemetry(LocalParametersClass):
         self._convertstaticData(static_data)
         return static_data
 
+    # @brief stop: Stop ACC data telemetry monitoring
     def stop(self) -> None:
         print("ACCData.stop()")
 
@@ -95,6 +104,7 @@ class ACCTelemetry(LocalParametersClass):
             self.mmapStatic.close()
         self.mmapStatic = None
 
+    # @brief _convertphysicsData: Convert physics data within the same category into aggregated data
     def _convertphysicsData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine X, Y, Z
@@ -116,6 +126,7 @@ class ACCTelemetry(LocalParametersClass):
                 data[newNameFLFRRLRR].append(data[oldNameFLFRRLRR])
                 del data[oldNameFLFRRLRR]
 
+    # @brief _convertgraphicData: Convert graphic data within the same category into aggregated data
     def _convertgraphicData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine x1, x2, ..., xn
@@ -131,6 +142,7 @@ class ACCTelemetry(LocalParametersClass):
                 data_string = data_bytes.decode("utf-8", "ignore")
                 data[newName] = data_string
 
+    # @brief _convertstaticData: Convert graphic data within the same category into aggregated data
     def _convertstaticData(self, data: dict[str, Any]) -> None:
         # Make these conversions immediately while reading from shm
         # Combine x1, x2, ..., xn
@@ -157,6 +169,8 @@ class ACCTelemetry(LocalParametersClass):
                 data[newNameFLFRRLRR].append(data[oldNameFLFRRLRR])
                 del data[oldNameFLFRRLRR]
 
+    # @brief getACCData: Combine physics, graphic, and static data dictionaries into a dictionary
+    # @return: ACC Telemetry data dictionary
     def getACCData(self) -> dict[str, Any]:
         Current_physicsData = self.getphysicsData()
         Current_graphicData = self.getgraphicData()
