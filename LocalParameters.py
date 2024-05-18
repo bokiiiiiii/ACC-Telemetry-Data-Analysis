@@ -1,12 +1,11 @@
-# Define local parameters and variables
-# Ref.: ACCSharedMemoryDocumentation
-
-
+# @brief LocalParametersClass: Define local parameters and variables
+# @reference ACCSharedMemoryDocumentation
 class LocalParametersClass:
 
+    # @brief __init__: Initialize parameters and variables, including physics, graphic, and static fields
     def __init__(self) -> None:
 
-        #### Physics ####
+        # * Physics
         physics_fields: str = (
             "packetId throttle brake fuel gear rpm steerAngle speedKmh "
             "velocityX velocityY velocityZ accGX accGY accGZ "
@@ -116,7 +115,7 @@ class LocalParametersClass:
             "discLife",
         ]
 
-        #### Graphic ####
+        # * Graphic
         graphic_partial_fields: str = (
             "packetId status session "
             # currentTime lastTime bestTime split
@@ -158,7 +157,7 @@ class LocalParametersClass:
             "trackStatus": [66, 537],
         }
 
-        # Create lists for array datas
+        # Create lists for array data
         graphic_lists: dict[str, tuple[list[str], int]] = {
             f"{name}_list": ([f"{name}{i}" for i in range(1, value[0] + 1)], value[1])
             for name, value in graphic_lists_name_length_index.items()
@@ -198,7 +197,7 @@ class LocalParametersClass:
             "trackStatus",
         ]
 
-        #### Static ####
+        # * Static
         static_partial_fields: str = (
             # smVersion acVersion
             "numberOfSessions numCars "
@@ -232,7 +231,7 @@ class LocalParametersClass:
             "wetTyresName": [66, 628],
         }
 
-        # Create lists for array datas
+        # Create lists for array data
         static_lists: dict[str, tuple[list[str], int]] = {
             f"{name}_list": ([f"{name}{i}" for i in range(1, value[0] + 1)], value[1])
             for name, value in static_lists_name_length_index.items()

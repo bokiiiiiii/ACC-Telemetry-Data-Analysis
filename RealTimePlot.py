@@ -2,8 +2,10 @@ import matplotlib.pyplot as plt
 from typing import Any
 
 
+# @brief RealTimePlot: Plot the real time ACC telemetry data
 class RealTimePlot:
 
+    # @brief __init__: Initialize parameters and variables
     def __init__(self) -> None:
 
         mem_x: list[float] = []
@@ -41,15 +43,17 @@ class RealTimePlot:
         self.line_color = line_color
         self.marker = marker
 
+    # @brief plot: Plot real-time car coordinate
+    # @para: Current_ACCData: [in] Current ACC Telemetry data dictionary
     def plot(self, Current_ACCData: dict[str, Any]):
 
         mem_x = self.mem_x
         mem_y = self.mem_y
         mem_z = self.mem_z
-        fig = self.fig
-        ax = self.ax
+        # fig = self.fig
+        # ax = self.ax
         line = self.line
-        line_color = self.line_color
+        # line_color = self.line_color
         marker = self.marker
 
         Current_carCoordinates: list[float] = Current_ACCData["carCoordinates"]
