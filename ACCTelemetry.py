@@ -1,4 +1,5 @@
-import mmap, struct
+import mmap
+import struct
 from typing import Any
 from LocalParameters import LocalParametersClass
 
