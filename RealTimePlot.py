@@ -57,7 +57,7 @@ class RealTimePlot:
         marker = self.marker
 
         Current_carCoordinates: list[float] = Current_ACCData["carCoordinates"]
-        Current_iCurrentTime: int = Current_ACCData["iCurrentTime"]
+        # Current_iCurrentTime: int = Current_ACCData["iCurrentTime"]
         Current_mycarCoordinates: list[float] = Current_carCoordinates[:3]
 
         # print(Current_mycarCoordinates)
