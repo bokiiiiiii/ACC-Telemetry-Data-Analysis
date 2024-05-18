@@ -50,10 +50,10 @@ class RealTimePlot:
         mem_x = self.mem_x
         mem_y = self.mem_y
         mem_z = self.mem_z
-        fig = self.fig
-        ax = self.ax
+        # fig = self.fig
+        # ax = self.ax
         line = self.line
-        line_color = self.line_color
+        # line_color = self.line_color
         marker = self.marker
 
         Current_carCoordinates: list[float] = Current_ACCData["carCoordinates"]
