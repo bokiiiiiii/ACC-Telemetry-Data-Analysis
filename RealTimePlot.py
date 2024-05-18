@@ -64,7 +64,7 @@ class RealTimePlot:
         x: float = Current_mycarCoordinates[0]  # x
         y: float = Current_mycarCoordinates[1]  # y
         z: float = Current_mycarCoordinates[2]  # z
-        t: float = Current_iCurrentTime * 0.001  # ms >> s
+        # t: float = Current_iCurrentTime * 0.001  # ms >> s
 
         mem_x.append(x)
         mem_y.append(y)

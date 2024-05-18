@@ -1,4 +1,5 @@
-import time, keyboard
+import time
+import keyboard
 import matplotlib.pyplot as plt
 from typing import Any
 
