@@ -49,12 +49,6 @@ jobs:
     - name: Security check with bandit
       run: |
         bandit -r . || echo 'Warning: Security check failed'
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-report
-        path: coverage.xml
     
     - name: Commit and push changes
       run: |
