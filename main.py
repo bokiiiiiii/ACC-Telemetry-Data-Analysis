@@ -1,6 +1,6 @@
 import time, keyboard
-from typing import Any
 import matplotlib.pyplot as plt
+from typing import Any
 
 from ACCTelemetry import ACCTelemetry
 from RealTimePlot import RealTimePlot
