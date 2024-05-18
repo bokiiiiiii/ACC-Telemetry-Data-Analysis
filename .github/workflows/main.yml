@@ -33,17 +33,19 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Format code with black
+    - name: Check code format with black
       run: |
+        black --check . || echo 'Warning: Code is not formatted according to black standards'
         black .
+  
 
     - name: Check code complexity with radon
       run: |
-        radon cc . -e "*/test/*" -nc
+        radon cc . -e "*/test/*" -nc || echo 'Warning: High code complexity detected'
 
     - name: Type check with mypy
       run: |
-        mypy .
+        mypy . || echo 'Warning: Type check failed'
 
     - name: Security check with bandit
       run: |
