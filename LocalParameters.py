@@ -1,4 +1,3 @@
-
 # @brief LocalParametersClass: Define local parameters and variables
 # @reference ACCSharedMemoryDocumentation
 class LocalParametersClass:
@@ -6,8 +5,7 @@ class LocalParametersClass:
     # @brief __init__: Initialize parameters and variables, including physics, graphic, and static fields
     def __init__(self) -> None:
 
-
-        #* Physics
+        # * Physics
         physics_fields: str = (
             "packetId throttle brake fuel gear rpm steerAngle speedKmh "
             "velocityX velocityY velocityZ accGX accGY accGZ "
@@ -117,8 +115,7 @@ class LocalParametersClass:
             "discLife",
         ]
 
-
-        #* Graphic
+        # * Graphic
         graphic_partial_fields: str = (
             "packetId status session "
             # currentTime lastTime bestTime split
@@ -200,8 +197,7 @@ class LocalParametersClass:
             "trackStatus",
         ]
 
-
-        #* Static
+        # * Static
         static_partial_fields: str = (
             # smVersion acVersion
             "numberOfSessions numCars "

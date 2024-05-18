@@ -2,6 +2,7 @@ import mmap, struct
 from typing import Any
 from LocalParameters import LocalParametersClass
 
+
 # @brief ACCTelemetry: Process ACC telemetry data from shared memory
 class ACCTelemetry(LocalParametersClass):
 

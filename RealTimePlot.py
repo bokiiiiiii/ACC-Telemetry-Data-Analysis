@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from typing import Any
 
+
 # @brief RealTimePlot: Plot the real time ACC telemetry data
 class RealTimePlot:
 
