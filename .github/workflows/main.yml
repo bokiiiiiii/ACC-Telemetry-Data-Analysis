@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -35,7 +35,7 @@ jobs:
 
     - name: Format code with black
       run: |
-        black --check .
+        black .
 
     - name: Check code complexity with radon
       run: |
@@ -58,3 +58,12 @@ jobs:
       with:
         name: coverage-report
         path: coverage.xml
+    
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add .
+        git commit -m 'Auto format code with black'
+        git push
+
