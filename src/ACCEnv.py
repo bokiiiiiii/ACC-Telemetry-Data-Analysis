@@ -45,12 +45,16 @@ class ACCEnv(gym.Env):
     # All coefficients are carefully tuned to have similar magnitude
     # to prevent any single component from dominating learning
     REWARD_SPEED_FACTOR = 0.5  # Speed reward magnitude [0, ~0.5]
-    REWARD_PROGRESS_MULTIPLIER = 10.0  # Reduced from 50 for better balance (~0.01-0.1 per step)
+    REWARD_PROGRESS_MULTIPLIER = (
+        10.0  # Reduced from 50 for better balance (~0.01-0.1 per step)
+    )
     PENALTY_OFF_TRACK = -100.0
     REWARD_SURVIVAL = 0.1  # Increased from 0.05 - every step counts
     PENALTY_DAMAGE_MULTIPLIER = -20.0  # Reduced from -50 for gentler learning
     PENALTY_SLIP_MULTIPLIER = -5.0  # Reduced from -10 for better balance
-    PENALTY_STUCK_OFF_TRACK_QUALIFYING = -2000.0  # Reduced from -5000 to prevent overshooting
+    PENALTY_STUCK_OFF_TRACK_QUALIFYING = (
+        -2000.0
+    )  # Reduced from -5000 to prevent overshooting
     PENALTY_STEERING_RATE = -0.3  # Reduced from -0.5 for gentler steering penalties
     LOW_SPEED_PENALTY_FACTOR = 0.3
 
@@ -172,7 +176,9 @@ class ACCEnv(gym.Env):
         self.suspension_damage = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         self.tyre_slip = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         self.tyre_core_temperature = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)  # For lateral velocity
+        self.velocity_xyz = np.array(
+            [0.0, 0.0, 0.0], dtype=np.float32
+        )  # For lateral velocity
         self.session_type = 0
         self.game_status = 0
 
@@ -312,12 +318,14 @@ class ACCEnv(gym.Env):
         current_raw_action = np.array([steer, throttle, brake], dtype=np.float32)
 
         # Adaptive smoothing: steering needs more smoothing than throttle/brake
-        steering_smoothing = 0.4      # More conservative steering
-        throttle_smoothing = 0.3      # Standard throttle
-        brake_smoothing = 0.25        # Responsive brakes
-        
-        smoothing_factors = np.array([steering_smoothing, throttle_smoothing, brake_smoothing])
-        
+        steering_smoothing = 0.4  # More conservative steering
+        throttle_smoothing = 0.3  # Standard throttle
+        brake_smoothing = 0.25  # Responsive brakes
+
+        smoothing_factors = np.array(
+            [steering_smoothing, throttle_smoothing, brake_smoothing]
+        )
+
         # Apply action smoothing with adaptive factors
         smoothed_action = (
             smoothing_factors * current_raw_action
@@ -482,26 +490,40 @@ class ACCEnv(gym.Env):
             self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
         # Calculate speed derivative (acceleration) for reward signal
-        speed_derivative = (self.speed_kmh - self.previous_speed_kmh) / 50.0 if self.speed_kmh != self.previous_speed_kmh else 0.0
+        speed_derivative = (
+            (self.speed_kmh - self.previous_speed_kmh) / 50.0
+            if self.speed_kmh != self.previous_speed_kmh
+            else 0.0
+        )
         speed_derivative = np.clip(speed_derivative, -1.0, 1.0)  # Normalize to [-1, 1]
 
         # Calculate lateral velocity (side slip indicator)
-        lateral_speed = self.velocity_xyz[0] if self.velocity_xyz.size >= 1 else 0.0  # X velocity in car frame
+        lateral_speed = (
+            self.velocity_xyz[0] if self.velocity_xyz.size >= 1 else 0.0
+        )  # X velocity in car frame
         lateral_speed = np.clip(lateral_speed / 50.0, -1.0, 1.0)  # Normalize to [-1, 1]
 
         # Construct the observation vector - all standardized to [-1, 1] or [0, 1]
         obs_list = [
             # 0. Speed normalized [0, 1]
-            np.clip(self._ensure_scalar_float(self.speed_kmh / self.MAX_SPEED_KMH), 0.0, 1.0),
+            np.clip(
+                self._ensure_scalar_float(self.speed_kmh / self.MAX_SPEED_KMH), 0.0, 1.0
+            ),
             # 1. Steering angle [-1, 1]
             np.clip(self._ensure_scalar_float(self.steer_angle), -1.0, 1.0),
             # 2. Gear normalized to [0, 1] (properly scaled)
-            np.clip(self._ensure_scalar_float((self.gear + 1) / (self.MAX_GEARS + 1)), 0.0, 1.0),
+            np.clip(
+                self._ensure_scalar_float((self.gear + 1) / (self.MAX_GEARS + 1)),
+                0.0,
+                1.0,
+            ),
             # 3. RPM normalized [0, 1]
             np.clip(
                 self._ensure_scalar_float(
                     self.rpm / self.max_rpm if self.max_rpm > 0 else 0.0
-                ), 0.0, 1.0
+                ),
+                0.0,
+                1.0,
             ),
             # 4. Track position [0, 1]
             np.clip(self._ensure_scalar_float(self.normalized_car_position), 0.0, 1.0),
@@ -511,14 +533,18 @@ class ACCEnv(gym.Env):
                     np.mean(self.suspension_damage)
                     if self.suspension_damage.size > 0
                     else 0.0
-                ), 0.0, 1.0
+                ),
+                0.0,
+                1.0,
             ),
             # 6. Tire slip [0, 1] - clipped to prevent extreme values
             np.clip(
                 self._ensure_scalar_float(
                     np.mean(self.tyre_slip) if self.tyre_slip.size > 0 else 0.0
-                ) / 3.0,  # Normalize by dividing by typical max slip
-                0.0, 1.0
+                )
+                / 3.0,  # Normalize by dividing by typical max slip
+                0.0,
+                1.0,
             ),
             # 7. Tire temperature [0, 1]
             np.clip(
@@ -526,7 +552,9 @@ class ACCEnv(gym.Env):
                     np.mean(self.tyre_core_temperature) / self.MAX_TYRE_TEMP_C
                     if self.tyre_core_temperature.size > 0
                     else 0.0
-                ), 0.0, 1.0
+                ),
+                0.0,
+                1.0,
             ),
             # 8. World position X normalized and clipped [-1, 1]
             np.clip(
@@ -534,7 +562,9 @@ class ACCEnv(gym.Env):
                     self.car_world_position[0] / self.CAR_WORLD_POS_NORMALIZATION
                     if self.car_world_position.size == 3
                     else 0.0
-                ), -1.0, 1.0
+                ),
+                -1.0,
+                1.0,
             ),
             # 9. World position Z normalized and clipped [-1, 1]
             np.clip(
@@ -542,14 +572,14 @@ class ACCEnv(gym.Env):
                     self.car_world_position[2] / self.CAR_WORLD_POS_NORMALIZATION
                     if self.car_world_position.size == 3
                     else 0.0
-                ), -1.0, 1.0
+                ),
+                -1.0,
+                1.0,
             ),
             # 10. Speed derivative (acceleration) [-1, 1]
             float(speed_derivative),
             # 11. Lateral velocity (side slip) [-1, 1]
             float(lateral_speed),
-        ]
-            ),
         ]
 
         try:
@@ -574,7 +604,7 @@ class ACCEnv(gym.Env):
         """
         Calculate reward value based on current state using improved reward shaping.
         Balances speed, progress, smoothness, and safety.
-        
+
         All rewards are now normalized to a similar scale to prevent any single component
         from dominating the signal.
         """
@@ -598,15 +628,15 @@ class ACCEnv(gym.Env):
         # Reward acceleration/smooth speed control
         speed_derivative = (self.speed_kmh - self.previous_speed_kmh) / 50.0
         speed_derivative = np.clip(speed_derivative, -2.0, 2.0)
-        
+
         # Reward positive acceleration (gaining speed at reasonable rate)
         if 0 < speed_derivative < 0.3:  # Gentle acceleration
             reward += 0.05
-        elif speed_derivative > 0.3:    # Too aggressive
+        elif speed_derivative > 0.3:  # Too aggressive
             reward -= 0.02
         elif -0.3 < speed_derivative < 0:  # Gentle braking
             reward += 0.02
-        elif speed_derivative < -0.3:   # Hard braking/crashing
+        elif speed_derivative < -0.3:  # Hard braking/crashing
             reward -= 0.05
 
         # ===== 2. Track Progress Reward =====
@@ -649,14 +679,13 @@ class ACCEnv(gym.Env):
         # ===== 5. Damage Penalty =====
         damage_increase = current_total_damage - self.previous_total_damage
         if damage_increase > self.DAMAGE_INCREASE_THRESHOLD:
-            reward += (
-                damage_increase * self.reward_coeffs["damage_penalty_multiplier"]
-            )
+            reward += damage_increase * self.reward_coeffs["damage_penalty_multiplier"]
 
         # ===== 6. Tire Slip Penalty =====
         avg_slip = (
             np.mean(self.tyre_slip)
-            if isinstance(self.tyre_slip, (list, np.ndarray)) and len(self.tyre_slip) > 0
+            if isinstance(self.tyre_slip, (list, np.ndarray))
+            and len(self.tyre_slip) > 0
             else 0.0
         )
         if avg_slip > self.SLIP_THRESHOLD:

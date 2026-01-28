@@ -13,7 +13,7 @@ NUM_EQUALS = 50
 def train_agent():
     """
     Main function to initialize, train, and save the PPO agent for ACC.
-    
+
     Improvements in this version:
     - Better hyperparameter tuning for racing task
     - Deeper network architecture (256-256-128)
@@ -51,10 +51,10 @@ def train_agent():
         "policy_kwargs": dict(
             net_arch=dict(
                 pi=[256, 256, 128],  # Policy network: deeper
-                vf=[256, 256, 128]   # Value network: deeper
+                vf=[256, 256, 128],  # Value network: deeper
             ),
-            activation_fn=None  # Use default activation (ReLU)
-        )
+            activation_fn=None,  # Use default activation (ReLU)
+        ),
     }
 
     # Create log and model save directories if not exist
@@ -112,8 +112,10 @@ def train_agent():
 
     # Start training
     print(f"Starting training, total timesteps: {TOTAL_TIMESTEPS}...")
-    print(f"PPO Parameters: lr={PPO_PARAMS['learning_rate']}, batch_size={PPO_PARAMS['batch_size']}, "
-          f"n_epochs={PPO_PARAMS['n_epochs']}, ent_coef={PPO_PARAMS['ent_coef']}")
+    print(
+        f"PPO Parameters: lr={PPO_PARAMS['learning_rate']}, batch_size={PPO_PARAMS['batch_size']}, "
+        f"n_epochs={PPO_PARAMS['n_epochs']}, ent_coef={PPO_PARAMS['ent_coef']}"
+    )
     print(f"Network Architecture: {PPO_PARAMS['policy_kwargs']}")
     try:
         model.learn(
