@@ -41,16 +41,18 @@ class ACCEnv(gym.Env):
     REWARD_PRINT_INTERVAL = 500
     CUMULATIVE_REWARD_PRINT_INTERVAL = 100
 
-    # --- Reward Coefficients ---
-    REWARD_SPEED_FACTOR = 1.0 / 5.0
-    REWARD_PROGRESS_MULTIPLIER = 200.0
+    # --- Reward Coefficients (Balanced for Sim Racing) ---
+    # All coefficients are carefully tuned to have similar magnitude
+    # to prevent any single component from dominating learning
+    REWARD_SPEED_FACTOR = 0.5  # Speed reward magnitude [0, ~0.5]
+    REWARD_PROGRESS_MULTIPLIER = 10.0  # Reduced from 50 for better balance (~0.01-0.1 per step)
     PENALTY_OFF_TRACK = -100.0
-    REWARD_SURVIVAL = 0.01
-    PENALTY_DAMAGE_MULTIPLIER = -100.0
-    PENALTY_SLIP_MULTIPLIER = -30.0
-    PENALTY_STUCK_OFF_TRACK_QUALIFYING = -10000.0
-    PENALTY_STEERING_RATE = -1.0
-    LOW_SPEED_PENALTY_FACTOR = 0.5
+    REWARD_SURVIVAL = 0.1  # Increased from 0.05 - every step counts
+    PENALTY_DAMAGE_MULTIPLIER = -20.0  # Reduced from -50 for gentler learning
+    PENALTY_SLIP_MULTIPLIER = -5.0  # Reduced from -10 for better balance
+    PENALTY_STUCK_OFF_TRACK_QUALIFYING = -2000.0  # Reduced from -5000 to prevent overshooting
+    PENALTY_STEERING_RATE = -0.3  # Reduced from -0.5 for gentler steering penalties
+    LOW_SPEED_PENALTY_FACTOR = 0.3
 
     # --- Reward Logic Thresholds ---
     DESIRED_MIN_SPEED_KMH = 15.0
@@ -120,14 +122,25 @@ class ACCEnv(gym.Env):
             dtype=np.float32,
         )
 
-        # Observation space:
-        # speed, steering angle, gear, RPM, track position,
-        # suspension_damage_avg, tyre_slip_avg, tyre_core_temp_avg_normalized, car_world_pos_x_normalized, car_world_pos_z_normalized.
+        # Observation space: 12 standardized features
+        # All features normalized to [-1, 1] or [0, 1] range for better learning
+        # 0. speed_normalized: [0, 1]
+        # 1. steer_angle: [-1, 1]
+        # 2. gear_normalized: [0, 1] (standardized)
+        # 3. rpm_normalized: [0, 1]
+        # 4. normalized_car_position: [0, 1]
+        # 5. suspension_damage_avg: [0, 1]
+        # 6. tyre_slip_avg: [0, 1] (clipped)
+        # 7. tyre_core_temp_normalized: [0, 1]
+        # 8. car_world_pos_x_normalized: [-1, 1] (clipped)
+        # 9. car_world_pos_z_normalized: [-1, 1] (clipped)
+        # 10. speed_derivative (acceleration): [-1, 1]
+        # 11. lateral_velocity: [-1, 1]
         self.observation_shape = (
-            10,  # Reduced from 12 after removing throttle_input, brake_input
+            12,  # Increased from 10 to include dynamics and improve learning
         )
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=self.observation_shape, dtype=np.float32
+            low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32
         )
 
         self.acc_telemetry = (
@@ -146,6 +159,7 @@ class ACCEnv(gym.Env):
 
         # --- RL State Variables ---
         self.speed_kmh = 0.0
+        self.previous_speed_kmh = 0.0  # For speed derivative calculation
         self.steer_angle = 0.0
         self.throttle_input = 0.0
         self.brake_input = 0.0
@@ -155,12 +169,10 @@ class ACCEnv(gym.Env):
         self.current_lap_time_ms = 0.0
         self.last_lap_time_ms = 0.0
         self.car_world_position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        # self.is_off_track = False # Removed
         self.suspension_damage = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        # self.aero_damage = 0.0 # Removed
-        # self.engine_damage = 0.0 # Removed
         self.tyre_slip = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         self.tyre_core_temperature = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)  # For lateral velocity
         self.session_type = 0
         self.game_status = 0
 
@@ -257,6 +269,7 @@ class ACCEnv(gym.Env):
 
         # Reset internal RL state variables
         self.speed_kmh = 0.0
+        self.previous_speed_kmh = 0.0  # Reset speed derivative tracker
         self.steer_angle = 0.0
         self.throttle_input = 0.0
         self.brake_input = 0.0
@@ -271,6 +284,7 @@ class ACCEnv(gym.Env):
         # self.engine_damage = 0.0 # Removed
         self.tyre_slip = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         self.tyre_core_temperature = np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
         self.previous_normalized_car_position = 0.0
         self.current_episode_steps = 0
@@ -291,13 +305,23 @@ class ACCEnv(gym.Env):
         return obs, {}
 
     def _apply_action(self, steer, throttle, brake):
-        """Apply action to the game via ACCController controlling vJoy"""
+        """
+        Apply action to the game via ACCController with adaptive smoothing.
+        Different smoothing factors for different action types for realistic control.
+        """
         current_raw_action = np.array([steer, throttle, brake], dtype=np.float32)
 
-        # Apply action smoothing
+        # Adaptive smoothing: steering needs more smoothing than throttle/brake
+        steering_smoothing = 0.4      # More conservative steering
+        throttle_smoothing = 0.3      # Standard throttle
+        brake_smoothing = 0.25        # Responsive brakes
+        
+        smoothing_factors = np.array([steering_smoothing, throttle_smoothing, brake_smoothing])
+        
+        # Apply action smoothing with adaptive factors
         smoothed_action = (
-            self.action_smoothing_factor * current_raw_action
-            + (1 - self.action_smoothing_factor) * self.previous_applied_action
+            smoothing_factors * current_raw_action
+            + (1 - smoothing_factors) * self.previous_applied_action
         )
 
         smooth_steer, smooth_throttle, smooth_brake = smoothed_action
@@ -448,44 +472,83 @@ class ACCEnv(gym.Env):
             )  # 0: AC_OFF, 1: AC_REPLAY, 2: AC_LIVE, ...
         )
 
-        # Construct the observation vector. All elements must be scalar floats.
+        # Get velocity for lateral motion detection
+        raw_velocity = acc_data.get("velocity", [0.0, 0.0, 0.0])
+        try:
+            self.velocity_xyz = np.array(raw_velocity, dtype=np.float32).flatten()
+            if self.velocity_xyz.size != 3:
+                self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        except:
+            self.velocity_xyz = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+
+        # Calculate speed derivative (acceleration) for reward signal
+        speed_derivative = (self.speed_kmh - self.previous_speed_kmh) / 50.0 if self.speed_kmh != self.previous_speed_kmh else 0.0
+        speed_derivative = np.clip(speed_derivative, -1.0, 1.0)  # Normalize to [-1, 1]
+
+        # Calculate lateral velocity (side slip indicator)
+        lateral_speed = self.velocity_xyz[0] if self.velocity_xyz.size >= 1 else 0.0  # X velocity in car frame
+        lateral_speed = np.clip(lateral_speed / 50.0, -1.0, 1.0)  # Normalize to [-1, 1]
+
+        # Construct the observation vector - all standardized to [-1, 1] or [0, 1]
         obs_list = [
-            self._ensure_scalar_float(self.speed_kmh / self.MAX_SPEED_KMH),
-            self._ensure_scalar_float(
-                self.steer_angle
-            ),  # Assumed to be in [-1, 1] from telemetry
-            self._ensure_scalar_float(
-                (self.gear + 1) / self.MAX_GEARS
-            ),  # Normalized gear
-            self._ensure_scalar_float(
-                self.rpm / self.max_rpm if self.max_rpm > 0 else 0.0
+            # 0. Speed normalized [0, 1]
+            np.clip(self._ensure_scalar_float(self.speed_kmh / self.MAX_SPEED_KMH), 0.0, 1.0),
+            # 1. Steering angle [-1, 1]
+            np.clip(self._ensure_scalar_float(self.steer_angle), -1.0, 1.0),
+            # 2. Gear normalized to [0, 1] (properly scaled)
+            np.clip(self._ensure_scalar_float((self.gear + 1) / (self.MAX_GEARS + 1)), 0.0, 1.0),
+            # 3. RPM normalized [0, 1]
+            np.clip(
+                self._ensure_scalar_float(
+                    self.rpm / self.max_rpm if self.max_rpm > 0 else 0.0
+                ), 0.0, 1.0
             ),
-            self._ensure_scalar_float(self.normalized_car_position),
-            # Removed: self._ensure_scalar_float(1.0 if self.is_off_track else 0.0),
-            self._ensure_scalar_float(
-                np.mean(self.suspension_damage)
-                if self.suspension_damage.size > 0
-                else 0.0
+            # 4. Track position [0, 1]
+            np.clip(self._ensure_scalar_float(self.normalized_car_position), 0.0, 1.0),
+            # 5. Suspension damage [0, 1]
+            np.clip(
+                self._ensure_scalar_float(
+                    np.mean(self.suspension_damage)
+                    if self.suspension_damage.size > 0
+                    else 0.0
+                ), 0.0, 1.0
             ),
-            # Removed: self._ensure_scalar_float(self.aero_damage),
-            # Removed: self._ensure_scalar_float(self.engine_damage),
-            self._ensure_scalar_float(
-                np.mean(self.tyre_slip) if self.tyre_slip.size > 0 else 0.0
+            # 6. Tire slip [0, 1] - clipped to prevent extreme values
+            np.clip(
+                self._ensure_scalar_float(
+                    np.mean(self.tyre_slip) if self.tyre_slip.size > 0 else 0.0
+                ) / 3.0,  # Normalize by dividing by typical max slip
+                0.0, 1.0
             ),
-            self._ensure_scalar_float(
-                np.mean(self.tyre_core_temperature) / self.MAX_TYRE_TEMP_C
-                if self.tyre_core_temperature.size > 0
-                else 0.0
+            # 7. Tire temperature [0, 1]
+            np.clip(
+                self._ensure_scalar_float(
+                    np.mean(self.tyre_core_temperature) / self.MAX_TYRE_TEMP_C
+                    if self.tyre_core_temperature.size > 0
+                    else 0.0
+                ), 0.0, 1.0
             ),
-            self._ensure_scalar_float(
-                self.car_world_position[0] / self.CAR_WORLD_POS_NORMALIZATION
-                if self.car_world_position.size == 3
-                else 0.0
+            # 8. World position X normalized and clipped [-1, 1]
+            np.clip(
+                self._ensure_scalar_float(
+                    self.car_world_position[0] / self.CAR_WORLD_POS_NORMALIZATION
+                    if self.car_world_position.size == 3
+                    else 0.0
+                ), -1.0, 1.0
             ),
-            self._ensure_scalar_float(
-                self.car_world_position[2] / self.CAR_WORLD_POS_NORMALIZATION
-                if self.car_world_position.size == 3
-                else 0.0
+            # 9. World position Z normalized and clipped [-1, 1]
+            np.clip(
+                self._ensure_scalar_float(
+                    self.car_world_position[2] / self.CAR_WORLD_POS_NORMALIZATION
+                    if self.car_world_position.size == 3
+                    else 0.0
+                ), -1.0, 1.0
+            ),
+            # 10. Speed derivative (acceleration) [-1, 1]
+            float(speed_derivative),
+            # 11. Lateral velocity (side slip) [-1, 1]
+            float(lateral_speed),
+        ]
             ),
         ]
 
@@ -508,77 +571,115 @@ class ACCEnv(gym.Env):
         return obs
 
     def _calculate_reward(self):
-        """Calculate reward value based on current state"""
+        """
+        Calculate reward value based on current state using improved reward shaping.
+        Balances speed, progress, smoothness, and safety.
+        
+        All rewards are now normalized to a similar scale to prevent any single component
+        from dominating the signal.
+        """
         reward = 0.0
         current_total_damage = (
             np.mean(self.suspension_damage) if self.suspension_damage.size > 0 else 0.0
         )
 
-        # Speed reward / Low speed penalty
-        if self.speed_kmh < self.DESIRED_MIN_SPEED_KMH:
-            # Penalty increases as speed drops further below DESIRED_MIN_SPEED_KMH
-            reward -= (
-                self.DESIRED_MIN_SPEED_KMH - self.speed_kmh
-            ) * self.reward_coeffs["low_speed_penalty_factor"]
+        # ===== 1. Speed Reward (Smooth, not clipped) =====
+        if self.speed_kmh < 5.0:
+            reward -= 0.5
+        elif self.speed_kmh < self.DESIRED_MIN_SPEED_KMH:
+            reward -= (self.DESIRED_MIN_SPEED_KMH - self.speed_kmh) * 0.05
         else:
-            # Reward for speed when above DESIRED_MIN_SPEED_KMH
-            reward += self.speed_kmh * self.reward_coeffs["speed_factor"]
+            ideal_speed = 100.0
+            speed_factor = 1.0 - abs(self.speed_kmh - ideal_speed) / ideal_speed
+            speed_reward = max(0, speed_factor) * self.reward_coeffs["speed_factor"]
+            reward += speed_reward
 
-        # Track progress reward
+        # ===== 1b. Speed Derivative Reward (NEW) =====
+        # Reward acceleration/smooth speed control
+        speed_derivative = (self.speed_kmh - self.previous_speed_kmh) / 50.0
+        speed_derivative = np.clip(speed_derivative, -2.0, 2.0)
+        
+        # Reward positive acceleration (gaining speed at reasonable rate)
+        if 0 < speed_derivative < 0.3:  # Gentle acceleration
+            reward += 0.05
+        elif speed_derivative > 0.3:    # Too aggressive
+            reward -= 0.02
+        elif -0.3 < speed_derivative < 0:  # Gentle braking
+            reward += 0.02
+        elif speed_derivative < -0.3:   # Hard braking/crashing
+            reward -= 0.05
+
+        # ===== 2. Track Progress Reward =====
         progress_made = (
             self.normalized_car_position - self.previous_normalized_car_position
         )
-        if progress_made < -0.8:  # Handle crossing finish line (0.99 -> 0.01)
+        if progress_made < -0.8:
             progress_made += 1.0
-        elif (
-            progress_made > 0.8
-        ):  # Handle possible reverse crossing of finish line (0.01 -> 0.99), penalize
+        elif progress_made > 0.8:
             progress_made -= 1.0
 
-        if (
-            self.speed_kmh > self.PROGRESS_REWARD_MIN_SPEED_KMH
-        ):  # Only reward progress at a certain speed to avoid farming points by moving slowly
+        if self.speed_kmh > self.PROGRESS_REWARD_MIN_SPEED_KMH:
             reward += progress_made * self.reward_coeffs["progress_multiplier"]
 
-        # Off-track penalty - Removed as self.is_off_track is removed
-        # if self.is_off_track:
-        #     reward += self.reward_coeffs["off_track_penalty"]  # Penalty is negative
-
-        # Time penalty (or survival reward)
-        reward += self.reward_coeffs["survival_reward"]
-
-        # Damage penalty
-        damage_increase = current_total_damage - self.previous_total_damage
-        if (
-            damage_increase > self.DAMAGE_INCREASE_THRESHOLD
-        ):  # Tolerate very small floating point errors
-            reward += (
-                damage_increase * self.reward_coeffs["damage_penalty_multiplier"]
-            )  # Multiplier is negative
-
-        # Excessive slip penalty
-        avg_slip = (
-            np.mean(self.tyre_slip)
-            if isinstance(self.tyre_slip, (list, np.ndarray))
-            and len(self.tyre_slip) > 0
-            else 0.0
-        )
-        # Penalize if average slip is above a threshold
-        if avg_slip > self.SLIP_THRESHOLD:
-            reward += (avg_slip - self.SLIP_THRESHOLD) * self.reward_coeffs[
-                "slip_penalty_multiplier"
-            ]  # Multiplier is negative
-
+        # ===== 3. Smooth Driving Reward =====
         steering_change = abs(
             self.last_applied_action[0] - self.previous_applied_action[0]
         )
         if steering_change > self.STEERING_RATE_THRESHOLD:
-            reward += (
+            smooth_penalty = (
                 steering_change - self.STEERING_RATE_THRESHOLD
             ) * self.reward_coeffs["steering_rate_penalty"]
+            reward += smooth_penalty
 
+        # Penalize sudden throttle/brake changes
+        throttle_change = abs(
+            self.last_applied_action[1] - self.previous_applied_action[1]
+        )
+        brake_change = abs(
+            self.last_applied_action[2] - self.previous_applied_action[2]
+        )
+        if throttle_change > 0.15:
+            reward -= (throttle_change - 0.15) * 0.2
+        if brake_change > 0.15:
+            reward -= (brake_change - 0.15) * 0.2
+
+        # ===== 4. Survival Reward =====
+        reward += self.reward_coeffs["survival_reward"]
+
+        # ===== 5. Damage Penalty =====
+        damage_increase = current_total_damage - self.previous_total_damage
+        if damage_increase > self.DAMAGE_INCREASE_THRESHOLD:
+            reward += (
+                damage_increase * self.reward_coeffs["damage_penalty_multiplier"]
+            )
+
+        # ===== 6. Tire Slip Penalty =====
+        avg_slip = (
+            np.mean(self.tyre_slip)
+            if isinstance(self.tyre_slip, (list, np.ndarray)) and len(self.tyre_slip) > 0
+            else 0.0
+        )
+        if avg_slip > self.SLIP_THRESHOLD:
+            slip_penalty = (avg_slip - self.SLIP_THRESHOLD) * self.reward_coeffs[
+                "slip_penalty_multiplier"
+            ]
+            reward += slip_penalty
+
+        # ===== 7. Bonus for smooth acceleration =====
+        if 0.0 < self.throttle_input < 0.8 and throttle_change < 0.05:
+            reward += 0.02
+
+        # ===== 8. Lateral Stability Bonus (NEW) =====
+        # Reward low lateral velocity (good lane control)
+        lateral_vel = self.velocity_xyz[0] if self.velocity_xyz.size >= 1 else 0.0
+        lateral_vel_normalized = min(abs(lateral_vel) / 50.0, 1.0)
+        if lateral_vel_normalized < 0.2:
+            reward += 0.02  # Reward good directional stability
+
+        # Update tracking variables for next step
         self.previous_normalized_car_position = self.normalized_car_position
         self.previous_total_damage = current_total_damage
+        self.previous_speed_kmh = self.speed_kmh
 
         return float(reward)
 

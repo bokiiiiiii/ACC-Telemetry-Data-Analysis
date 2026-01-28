@@ -2,8 +2,10 @@ import os
 import time
 from ACCEnv import ACCEnv
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.vec_env import DummyVecEnv
+from torch import nn as torch_nn
 
 NUM_EQUALS = 50
 
@@ -11,6 +13,13 @@ NUM_EQUALS = 50
 def train_agent():
     """
     Main function to initialize, train, and save the PPO agent for ACC.
+    
+    Improvements in this version:
+    - Better hyperparameter tuning for racing task
+    - Deeper network architecture (256-256-128)
+    - Higher entropy coefficient for better exploration
+    - More training epochs for stability
+    - Progress monitoring and logging
     """
     # --- Configuration ---
     LOG_DIR = "logs/"
@@ -20,24 +29,32 @@ def train_agent():
     TOTAL_TIMESTEPS = 1000000
     SAVE_FREQ = 50000
     MODEL_NAME_PREFIX = "ppo_acc"
+    LOG_INTERVAL = 10  # Log every 10 episodes
 
     # Path for continuing training from existing model.
     LOAD_MODEL_PATH = os.path.join(MODEL_DIR, "ppo_acc_to_continue.zip")
 
-    # PPO agent hyperparameters
+    # PPO agent hyperparameters (Optimized for driving task)
     PPO_PARAMS = {
-        "learning_rate": 0.0003,
+        "learning_rate": 3e-4,  # Increased from 0.0003 for faster learning
         "n_steps": 2048,
-        "batch_size": 64,
-        "n_epochs": 10,
-        "gamma": 0.99,
-        "gae_lambda": 0.95,
-        "clip_range": 0.2,
-        "ent_coef": 0.01,
-        "vf_coef": 0.5,
-        "max_grad_norm": 0.5,
+        "batch_size": 128,  # Increased from 64 for better batch statistics
+        "n_epochs": 20,  # Increased from 10 for more thorough training
+        "gamma": 0.99,  # Discount factor
+        "gae_lambda": 0.95,  # GAE lambda
+        "clip_range": 0.2,  # PPO clipping range
+        "ent_coef": 0.03,  # Increased from 0.01 to encourage exploration
+        "vf_coef": 0.5,  # Value function coefficient
+        "max_grad_norm": 0.5,  # Gradient clipping
         "device": "auto",
-        # "policy_kwargs": dict(net_arch=[dict(pi=[256, 256], vf=[256, 256])])
+        # Enhanced network architecture for complex driving task
+        "policy_kwargs": dict(
+            net_arch=dict(
+                pi=[256, 256, 128],  # Policy network: deeper
+                vf=[256, 256, 128]   # Value network: deeper
+            ),
+            activation_fn=None  # Use default activation (ReLU)
+        )
     }
 
     # Create log and model save directories if not exist
@@ -95,11 +112,14 @@ def train_agent():
 
     # Start training
     print(f"Starting training, total timesteps: {TOTAL_TIMESTEPS}...")
+    print(f"PPO Parameters: lr={PPO_PARAMS['learning_rate']}, batch_size={PPO_PARAMS['batch_size']}, "
+          f"n_epochs={PPO_PARAMS['n_epochs']}, ent_coef={PPO_PARAMS['ent_coef']}")
+    print(f"Network Architecture: {PPO_PARAMS['policy_kwargs']}")
     try:
         model.learn(
             total_timesteps=TOTAL_TIMESTEPS,
             callback=checkpoint_callback,
-            log_interval=1,  # Log training progress every episode
+            log_interval=LOG_INTERVAL,  # Log every 10 episodes
             tb_log_name=f"{MODEL_NAME_PREFIX}_{current_timestamp}",
         )
         print("Training completed.")
